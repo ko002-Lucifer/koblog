@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(configs);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "未知错误";
-    return NextResponse.json({ code: 1, message }, { status: 401 });
+    const status = message.includes("未登录") || message.includes("无效的令牌") ? 401 : 500;
+    return NextResponse.json({ code: 1, message, stack: err instanceof Error ? err.stack : undefined }, { status });
   }
 }

@@ -121,7 +121,7 @@ export async function GET() {
   } catch (err: any) {
     console.error("Dashboard stats error:", err);
     return NextResponse.json(
-      { code: 1, message: "获取统计数据失败" },
+      { code: 1, message: err?.message || "获取统计数据失败", stack: err?.stack },
       { status: 500 }
     );
   }
