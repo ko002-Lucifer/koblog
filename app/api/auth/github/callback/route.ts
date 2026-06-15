@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { SignJWT } from "jose";
+import { createToken } from "@/app/lib/auth";
 
 const SECRET_KEY = new TextEncoder().encode(
   process.env.SECRET_KEY || "default-secret-key-change-me"
@@ -10,6 +11,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
+    const state = searchParams.get("state") || "";
+    const isAdminLogin = state === "admin";
+
     if (!code) {
       return NextResponse.json(
         { error: "缺少 code 参数" },
@@ -63,7 +67,52 @@ export async function GET(request: Request) {
       );
     }
 
-    // 3) 查找或创建 GitHubUser
+    const frontendOrigin =
+      process.env.FRONTEND_ORIGIN || "http://localhost:3000";
+
+    // 后台登录白名单检查
+    if (isAdminLogin) {
+      const allowedUsers = (process.env.ADMIN_GITHUB_USERS || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      if (!allowedUsers.includes(userData.login)) {
+        return NextResponse.redirect(
+          `${frontendOrigin}/admin/?error=github_unauthorized`
+        );
+      }
+
+      // 查找或创建 admin 用户
+      let user = await prisma.user.findUnique({
+        where: { username: userData.login },
+      });
+
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            username: userData.login,
+            nickname: userData.login,
+            hashed_password: "",
+            avatar: userData.avatar_url || "",
+            is_admin: true,
+          },
+        });
+      }
+
+      const accessTokenStr = await createToken({
+        sub: String(user.id),
+        username: user.username,
+        type: "user",
+      });
+      const expires = Date.now() + 72 * 60 * 60 * 1000;
+
+      return NextResponse.redirect(
+        `${frontendOrigin}/admin/?token=${accessTokenStr}&expires=${expires}`
+      );
+    }
+
+    // 3) 查找或创建 GitHubUser（前台登录逻辑不变）
     let githubUser = await prisma.gitHubUser.findUnique({
       where: { github_id: userData.id },
     });
@@ -99,8 +148,6 @@ export async function GET(request: Request) {
       .sign(SECRET_KEY);
 
     // 5) 重定向
-    const frontendOrigin =
-      process.env.FRONTEND_ORIGIN || "http://localhost:3000";
     return NextResponse.redirect(
       `${frontendOrigin}/auth/callback?token=${token}`
     );

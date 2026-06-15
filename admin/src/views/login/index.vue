@@ -9,13 +9,15 @@ import type { FormInstance } from "element-plus";
 import { useUserStoreHook } from "@/store/modules/user";
 import { initRouter, getTopMenu } from "@/router/utils";
 import { ReImageVerify } from "@/components/ReImageVerify";
-import { ref, reactive, watch } from "vue";
+import { ref, reactive, watch, onMounted } from "vue";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { avatar } from "./utils/static";
+import { setToken } from "@/utils/auth";
 
 import Lock from "~icons/ri/lock-fill";
 import User from "~icons/ri/user-3-fill";
 import Keyhole from "~icons/ri/shield-keyhole-line";
+import Github from "~icons/ri/github-fill";
 
 defineOptions({
   name: "Login"
@@ -36,6 +38,41 @@ const ruleForm = reactive({
   password: "",
   verifyCode: ""
 });
+
+onMounted(() => {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token");
+  const expires = params.get("expires");
+  const error = params.get("error");
+
+  if (error === "github_unauthorized") {
+    message("该 GitHub 账号无权限登录后台", { type: "error" });
+    window.history.replaceState({}, "", window.location.pathname);
+    return;
+  }
+
+  if (token && expires) {
+    setToken({
+      accessToken: token,
+      expires: new Date(Number(expires)),
+      refreshToken: "",
+      username: "admin",
+      nickname: "Admin",
+      roles: ["admin"],
+      permissions: ["*"]
+    });
+    initRouter().then(() => {
+      router.push(getTopMenu(true).path).then(() => {
+        message("GitHub 登录成功", { type: "success" });
+      });
+    });
+    window.history.replaceState({}, "", window.location.pathname);
+  }
+});
+
+const loginByGithub = () => {
+  window.location.href = "/api/auth/github/login?state=admin";
+};
 
 const onLogin = async (formEl: FormInstance | undefined) => {
   if (!formEl) return;
@@ -219,6 +256,21 @@ watch(loginDay, value => {
           @click="onLogin(ruleFormRef)"
         >
           登 录
+        </el-button>
+
+        <div class="flex items-center justify-center my-3">
+          <div class="flex-1 h-px bg-gray-200" />
+          <span class="mx-3 text-xs text-gray-400">或</span>
+          <div class="flex-1 h-px bg-gray-200" />
+        </div>
+
+        <el-button
+          class="w-full !h-11 !text-base !rounded-xl"
+          size="default"
+          @click="loginByGithub"
+        >
+          <component :is="useRenderIcon(Github)" class="mr-1" />
+          使用 GitHub 登录
         </el-button>
       </el-form>
 

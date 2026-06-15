@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const state = searchParams.get("state") || "";
   const clientId = process.env.GITHUB_CLIENT_ID;
   if (!clientId) {
     return NextResponse.json(
@@ -8,6 +10,6 @@ export async function GET() {
       { status: 500 }
     );
   }
-  const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=read:user`;
+  const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=read:user&state=${encodeURIComponent(state)}`;
   return NextResponse.redirect(url);
 }
