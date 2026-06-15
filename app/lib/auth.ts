@@ -44,10 +44,26 @@ export async function decodeToken(token: string) {
 }
 
 export async function getCurrentUser(request: Request) {
+  // 优先从 Authorization header 读取
   const auth = request.headers.get("Authorization") || "";
-  if (!auth.startsWith("Bearer ")) {
-    throw new Error("未登录");
+  if (auth.startsWith("Bearer ")) {
+    const token = auth.slice(7);
+    return decodeToken(token);
   }
-  const token = auth.slice(7);
-  return decodeToken(token);
+
+  // 支持从 Cookie 读取（用于浏览器直接访问）
+  const cookieHeader = (request as any).headers?.get?.("cookie") || "";
+  const tokenMatch = cookieHeader.match(/authorized-token=([^;]+)/);
+  if (tokenMatch) {
+    try {
+      const cookieData = JSON.parse(decodeURIComponent(tokenMatch[1]));
+      if (cookieData.accessToken) {
+        return decodeToken(cookieData.accessToken);
+      }
+    } catch {
+      // cookie 格式不对，忽略
+    }
+  }
+
+  throw new Error("未登录");
 }

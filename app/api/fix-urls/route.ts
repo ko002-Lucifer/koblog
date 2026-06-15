@@ -3,24 +3,23 @@ import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth";
 import { getFileUrl, cleanUrlPath } from "@/app/lib/r2";
 
-export async function POST(request: NextRequest) {
-  try {
-    await getCurrentUser(request);
+async function doFix(request: NextRequest) {
+  await getCurrentUser(request);
 
-    const results: Record<string, number> = {};
+  const results: Record<string, number> = {};
 
-    // 1. 修复 Photo.url
-    const photos = await prisma.photo.findMany();
-    let photoFixed = 0;
-    for (const photo of photos) {
-      if (photo.url.includes("r2.cloudflarestorage.com") && !photo.url.includes("r2.dev")) {
-        const key = cleanUrlPath(photo.url);
-        const newUrl = getFileUrl(key);
-        await prisma.photo.update({ where: { id: photo.id }, data: { url: newUrl } });
-        photoFixed++;
-      }
+  // 1. 修复 Photo.url
+  const photos = await prisma.photo.findMany();
+  let photoFixed = 0;
+  for (const photo of photos) {
+    if (photo.url.includes("r2.cloudflarestorage.com") && !photo.url.includes("r2.dev")) {
+      const key = cleanUrlPath(photo.url);
+      const newUrl = getFileUrl(key);
+      await prisma.photo.update({ where: { id: photo.id }, data: { url: newUrl } });
+      photoFixed++;
     }
-    results["photo"] = photoFixed;
+  }
+  results["photo"] = photoFixed;
 
     // 2. 修复 Album.cover
     const albums = await prisma.album.findMany();
@@ -160,7 +159,24 @@ export async function POST(request: NextRequest) {
     }
     results["siteConfig"] = configFixed;
 
-    return NextResponse.json({ code: 0, message: "修复完成", results });
+  return NextResponse.json({ code: 0, message: "修复完成", results });
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    return await doFix(request);
+  } catch (err: any) {
+    console.error("Fix URLs error:", err);
+    return NextResponse.json(
+      { code: 1, message: err?.message || "修复失败" },
+      { status: err?.message === "未登录" || err?.message === "无效的令牌" ? 401 : 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    return await doFix(request);
   } catch (err: any) {
     console.error("Fix URLs error:", err);
     return NextResponse.json(
