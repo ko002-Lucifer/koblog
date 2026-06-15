@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth";
+import { deleteFile, cleanUrlPath } from "@/app/lib/r2";
 
 export async function DELETE(
   request: NextRequest,
@@ -13,6 +14,12 @@ export async function DELETE(
     await prisma.$transaction(async (tx) => {
       const photo = await tx.photo.findUnique({ where: { id } });
       if (!photo) throw new Error("照片不存在");
+
+      // 删除 R2 中的图片文件
+      if (photo.url) {
+        await deleteFile(cleanUrlPath(photo.url)).catch(() => {});
+      }
+
       await tx.photo.delete({ where: { id } });
       const count = await tx.photo.count({
         where: { album_id: photo.album_id },

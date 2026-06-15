@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth";
+import { deleteFile, cleanUrlPath } from "@/app/lib/r2";
 
 export async function PUT(
   request: NextRequest,
@@ -35,6 +36,12 @@ export async function DELETE(
     await getCurrentUser(request);
     const { linkId } = await params;
     const id = Number(linkId);
+
+    const link = await prisma.friendLink.findUnique({ where: { id } });
+    if (link && link.avatar) {
+      await deleteFile(cleanUrlPath(link.avatar)).catch(() => {});
+    }
+
     await prisma.friendLink.delete({ where: { id } });
     return NextResponse.json({ code: 0, message: "success" });
   } catch (err: unknown) {

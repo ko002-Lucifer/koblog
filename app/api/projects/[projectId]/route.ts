@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth";
+import { deleteFile, cleanUrlPath } from "@/app/lib/r2";
 
 export async function GET(
   _request: NextRequest,
@@ -72,6 +73,12 @@ export async function DELETE(
     await getCurrentUser(request);
     const { projectId } = await params;
     const id = Number(projectId);
+
+    const project = await prisma.project.findUnique({ where: { id } });
+    if (project && project.cover_image) {
+      await deleteFile(cleanUrlPath(project.cover_image)).catch(() => {});
+    }
+
     await prisma.project.delete({ where: { id } });
     return NextResponse.json({ code: 0, message: "success" });
   } catch (err: unknown) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth";
+import { deleteFile, cleanUrlPath } from "@/app/lib/r2";
 
 function toPostItem(post: any) {
   return {
@@ -236,6 +237,11 @@ export async function DELETE(
     });
     if (!existing) {
       return NextResponse.json({ error: "文章不存在" }, { status: 404 });
+    }
+
+    // 删除封面图
+    if (existing.cover) {
+      await deleteFile(cleanUrlPath(existing.cover)).catch(() => {});
     }
 
     await prisma.$transaction(async (tx) => {

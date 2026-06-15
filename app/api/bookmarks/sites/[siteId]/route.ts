@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth";
+import { deleteFile, cleanUrlPath } from "@/app/lib/r2";
 
 function parseSitePlatforms(site: any) {
   if (!site) return site;
@@ -50,6 +51,12 @@ export async function DELETE(
     await getCurrentUser(request);
     const { siteId } = await params;
     const id = Number(siteId);
+
+    const site = await prisma.bookmarkSite.findUnique({ where: { id } });
+    if (site && site.icon) {
+      await deleteFile(cleanUrlPath(site.icon)).catch(() => {});
+    }
+
     await prisma.bookmarkSite.delete({ where: { id } });
     return NextResponse.json({ code: 0, message: "success" });
   } catch (err: unknown) {

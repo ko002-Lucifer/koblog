@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth";
+import { deleteFile, cleanUrlPath } from "@/app/lib/r2";
 
 export async function GET(
   _request: NextRequest,
@@ -51,6 +52,17 @@ export async function DELETE(
     await getCurrentUser(request);
     const { albumId } = await params;
     const id = Number(albumId);
+
+    // 先删除相册内所有照片对应的 R2 文件
+    const photos = await prisma.photo.findMany({ where: { album_id: id } });
+    for (const photo of photos) {
+      if (photo.url) {
+        await deleteFile(cleanUrlPath(photo.url)).catch(() => {});
+      }
+    }
+
+    // 级联删除数据库记录
+    await prisma.photo.deleteMany({ where: { album_id: id } });
     await prisma.album.delete({ where: { id } });
     return NextResponse.json({ code: 0, message: "success" });
   } catch (err: unknown) {

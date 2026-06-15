@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth";
+import { deleteFile, cleanUrlPath } from "@/app/lib/r2";
 
 export async function GET(
   request: Request,
@@ -71,6 +72,22 @@ export async function DELETE(
     const chatterId = parseInt(p.chatterId);
     if (isNaN(chatterId)) {
       return NextResponse.json({ error: "无效的说说ID" }, { status: 400 });
+    }
+
+    const chatter = await prisma.chatter.findUnique({ where: { id: chatterId } });
+    if (chatter && chatter.images) {
+      try {
+        const images = JSON.parse(chatter.images);
+        if (Array.isArray(images)) {
+          for (const url of images) {
+            if (typeof url === "string") {
+              await deleteFile(cleanUrlPath(url)).catch(() => {});
+            }
+          }
+        }
+      } catch {
+        // ignore JSON parse error
+      }
     }
 
     await prisma.chatter.delete({ where: { id: chatterId } });
