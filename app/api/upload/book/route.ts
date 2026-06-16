@@ -117,13 +117,13 @@ export async function POST(request: Request) {
 
     const book = await prisma.book.create({
       data: {
-        title: finalTitle || file.name.replace(ext, ""),
+        title: finalTitle || fileName.replace(new RegExp("\\.?" + format + "$", "i"), ""),
         author: finalAuthor,
         description: finalDescription,
         cover: coverUrl,
         file_url: bookUrl,
         format,
-        file_size: file.size,
+        file_size: fileSize,
         category_id: categoryId,
       },
     });

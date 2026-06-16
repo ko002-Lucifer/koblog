@@ -152,7 +152,7 @@ export async function POST(request: Request) {
 
     const music = await prisma.music.create({
       data: {
-        title: finalTitle || file.name.replace(ext, ""),
+        title: finalTitle || fileName.replace(/\.[^.]+$/, ""),
         artist: finalArtist,
         cover: coverUrl,
         src: musicUrl,
