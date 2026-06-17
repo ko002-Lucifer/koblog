@@ -46,3 +46,25 @@ next-env.d.ts
 
 # admin build output (rebuilt on deploy)
 /public/admin
+
+# Cloudflare Wrangler local state (sqlite, wasm, etc.)
+/.wrangler
+
+# local debug / one-off scripts (kept on disk but not in repo)
+analyze-*.cjs
+check-*.cjs
+fix-*.cjs
+
+# local uploads to public (real production uses R2 via app/lib/r2.ts)
+/public/uploads
+
+# local placeholder images used during early development
+/public/images
+
+# OS / editor temp
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
