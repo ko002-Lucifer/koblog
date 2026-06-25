@@ -44,7 +44,7 @@ export const getPostBySlug = (slug: string) => {
 
 /** 获取文章详情（按 ID，编辑用） */
 export const getPostById = (postId: number) => {
-  return http.request<PostDetail>("get", `/api/posts/detail/${postId}`);
+  return http.request<PostDetail>("get", `/api/posts/${postId}`);
 };
 
 /** 创建文章 */

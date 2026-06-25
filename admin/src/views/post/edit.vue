@@ -130,21 +130,22 @@ onMounted(async () => {
     loading.value = true;
     try {
       const detail = await getPostById(postId.value);
-      form.value = {
+      Object.assign(form.value, {
         title: detail.title,
         slug: detail.slug,
-        description: detail.description,
-        content: detail.content,
-        cover: detail.cover,
-        category_id: null,
-        tags: detail.tags || [],
+        description: detail.description ?? "",
+        content: detail.content ?? "",
+        cover: detail.cover ?? "",
         status: detail.status,
         is_pinned: detail.is_pinned,
         reading_time: detail.reading_time ?? 0,
-        word_count: detail.word_count ?? 0
-      };
+        word_count: detail.word_count ?? 0,
+        tags: detail.tags || []
+      });
       const cat = categoryList.value.find(c => c.name === detail.category);
-      if (cat) form.value.category_id = cat.id;
+      form.value.category_id = cat ? cat.id : null;
+    } catch (e: any) {
+      message(e?.message ?? "获取文章详情失败", { type: "error" });
     } finally {
       loading.value = false;
     }
