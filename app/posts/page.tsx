@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Loader2, SearchX } from "lucide-react";
 import PostCard, { type PostOut } from "@/components/posts/PostCard";
@@ -8,10 +9,12 @@ import SearchBar from "@/components/ui/SearchBar";
 import { getCategories, getPosts, type CategoryItem } from "@/app/api";
 
 export default function PostsPage() {
+  const router = useRouter();
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [posts, setPosts] = useState<PostOut[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [keyword, setKeyword] = useState("");
+  const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -29,15 +32,25 @@ export default function PostsPage() {
 
   // 获取文章（支持分类和关键词搜索）
   useEffect(() => {
-    queueMicrotask(() => setLoading(true));
+    const trimmed = keyword.trim();
+    const isSearch = trimmed.length > 0;
+    queueMicrotask(() => {
+      setLoading(true);
+      if (isSearch && page === 1) setSearching(true);
+    });
     getPosts({
       status: "published",
       page,
       size: pageSize,
       ...(activeCategory ? { category: activeCategory } : {}),
-      ...(keyword ? { keyword } : {}),
+      ...(trimmed ? { keyword: trimmed } : {}),
     })
       .then((data) => {
+        // 搜索模式下只有一篇匹配时直接跳转到文章详情并高亮
+        if (isSearch && page === 1 && data.length === 1) {
+          router.push(`/posts/${data[0].slug}?highlight=${encodeURIComponent(trimmed)}`);
+          return;
+        }
         if (page === 1) {
           setPosts(data);
         } else {
@@ -47,9 +60,13 @@ export default function PostsPage() {
       })
       .catch(() => {
         if (page === 1) setPosts([]);
+        setHasMore(false);
       })
-      .finally(() => { setLoading(false); });
-  }, [activeCategory, keyword, page, pageSize]);
+      .finally(() => {
+        setLoading(false);
+        setSearching(false);
+      });
+  }, [activeCategory, keyword, page, pageSize, router]);
 
   const handleSearch = (k: string) => {
     setKeyword(k);
@@ -97,6 +114,29 @@ export default function PostsPage() {
           placeholder="搜索文章内容..."
         />
       </motion.div>
+
+      {/* 搜索状态提示 */}
+      {keyword.trim() && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mb-4 md:mb-6 text-sm md:text-base text-slate-600 dark:text-slate-400"
+        >
+          {searching ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              正在搜索「{keyword.trim()}」...
+            </span>
+          ) : posts.length > 0 ? (
+            <span>
+              找到 <span className="font-semibold text-sky-500">{posts.length}</span> 篇包含「{keyword.trim()}」的文章
+              {posts.length >= pageSize && "（更多结果可加载）"}
+            </span>
+          ) : (
+            <span className="text-slate-400">未找到包含「{keyword.trim()}」的文章</span>
+          )}
+        </motion.div>
+      )}
 
       {/* 分类筛选 */}
       <motion.div
